@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My E-Shop</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons (for Home, Cart, etc.) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            background-color: #f0f4f8; /* Light background */
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        /* Custom animations for better UX */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-down {
+            animation: fadeInDown 0.6s ease-out forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s ease-out forwards;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            60% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        .animate-bounce-in {
+            animation: bounceIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes modalIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .animate-modal-in {
+            animation: modalIn 0.3s ease-out forwards;
+        }
+
+        /* Order Confirmation Tick Animation */
+        .checkmark-circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 2;
+            stroke-miterlimit: 10;
+            stroke: #fff;
+            fill: none;
+            animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        }
+
+        .checkmark-check {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            stroke-width: 2;
+            stroke-miterlimit: 10;
+            stroke: #fff;
+            fill: none;
+            animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+        }
+
+        @keyframes stroke {
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes scaleIn {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+        .checkmark-svg {
+            animation: scaleIn 0.5s cubic-bezier(0.65, 0, 0.45, 1) 0.3s forwards;
+            transform: scale(0); /* Start scaled down */
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 shadow-lg rounded-b-xl">
+            <div class="container mx-auto flex justify-between items-center">
+                <h1 id="home-link" class="text-3xl font-bold font-inter cursor-pointer">
+                    My E-Shop
+                </h1>
+                <nav class="flex space-x-6">
+                    <button id="nav-home" class="flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="home" class="w-5 h-5"></i>
+                        <span>Home</span>
+                    </button>
+                    <button id="nav-categories" class="flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                        <span>Categories</span>
+                    </button>
+                    <button id="nav-cart" class="relative flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                        <span>Cart</span>
+                        <span id="cart-item-count" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">
+                            0
+                        </span>
+                    </button>
+                    <button id="nav-admin" class="flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="edit" class="w-5 h-5"></i>
+                        <span>Admin</span>
+                    </button>
+                    <div id="auth-buttons">
+                        <!-- Login/Logout buttons will be rendered here -->
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main id="content-area" class="flex-grow p-4">
+            <!-- Content will be dynamically loaded here by JavaScript -->
+        </main>
+
+        <!-- Product Detail Modal -->
+        <div id="product-detail-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 hidden">
+            <div class="bg-white rounded-xl shadow-2xl p-8 max-w-3xl w-full relative animate-modal-in">
+                <button id="close-product-modal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+                    <i data-lucide="x-circle" class="w-7 h-7"></i>
+                </button>
+                <div id="modal-content" class="flex flex-col md:flex-row gap-8">
+                    <!-- Product details will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Global State Variables ---
+        let currentPage = 'home';
+        let cart = [];
+        let products = [
+            { id: 'p1', category: 'Electronics', name: 'Wireless Headphones', price: 15000, description: 'Compact portable speaker with powerful sound and long battery life.', imageUrl: 'https://m.media-amazon.com/images/I/41JACWT-wWL._SX522_.jpg', reviews: [{ userName: 'Alice', rating: 5, comment: 'Amazing sound quality!' }] },
+            { id: 'p17', category: 'Electronics', name: 'Portable Speaker', price: 9000, description: 'High-fidelity sound with noise cancellation, perfect for immersive audio experiences. Long-lasting battery life and comfortable earcups.', imageUrl: 'https://alhamdtech.pk/cdn/shop/files/jbl-partybox-110-portable-party-speaker-built-in-lights-961702.jpg?v=1722252487', reviews: [{ userName: 'manahil', rating: 5, comment: 'Amazing sound quality!' }] },
+            { id: 'p18', category: 'Electronics', name: 'Gaming Mouse', price: 5000, description: 'Ergonomic gaming mouse with customizable RGB lighting and high DPI.', imageUrl: 'https://static1.xdaimages.com/wordpress/wp-content/uploads/wm/2024/03/gravastar-mercury-m1-pro-body.jpg', reviews: [{ userName: 'Ali', rating: 4, comment: 'It is a good product to use I love to use it!' }] },
+            { id: 'p2', category: 'Electronics', name: 'Smartwatch', price: 30000, description: 'Track your fitness, receive notifications, and manage calls directly from your wrist. Features a vibrant display and durable design.', imageUrl: 'https://cdn.sectornolimits.com/i/huge/75561/9-sector-smartwatch-s-04-colours-r3253158008_v9n1b8.jpg', reviews: [{ userName: 'Bob', rating: 4, comment: 'Good features, battery could be better.' }] },
+            { id: 'p3', category: 'Clothing', name: 'Casual T-Shirt', price: 3500, description: 'Comfortable 100% cotton t-shirt for everyday wear. Available in multiple colors and sizes.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShey2AptKKhlWkQjttQUTrF0Z9rjCuWT5a1A&s', reviews: [{ userName: 'Charlie', rating: 5, comment: 'Very soft and fits perfectly.' }] },
+            { id: 'p4', category: 'Clothing', name: 'Denim Jeans', price: 8500, description: 'Classic fit denim jeans, durable and stylish for any occasion. Features five pockets and a comfortable stretch.', imageUrl: 'https://diners.com.pk/cdn/shop/files/KBC-1012D-BLUERS2790-01.webp?v=1713951855', reviews: [{ userName: 'Diana', rating: 4, comment: 'Stylish and comfortable, a bit long.' }] },
+            { id: 'p5', category: 'Home Goods', name: 'Coffee Maker', price: 12000, description: 'Brew perfect coffee every morning with this easy-to-use coffee maker. Features a programmable timer and a large capacity.', imageUrl: 'https://static-01.daraz.pk/p/734e0e5f553f74f146d6c5e2d3239455.jpg', reviews: [{ userName: 'Eve', rating: 5, comment: 'Makes excellent coffee, easy to clean.' }] },
+            { id: 'p6', category: 'Home Goods', name: 'Desk Lamp', price: 5000, description: 'Modern desk lamp with adjustable brightness and color temperature. Perfect for reading or working.', imageUrl: 'https://apricot.com.pk/cdn/shop/products/Creative-Wooden-Iron-Table-Desk-Lamp-Grey-Apricot-531.jpg?v=1712099874', reviews: [{ userName: 'Frank', rating: 3, comment: 'Good for the price, but a bit flimsy.' }] },
+            { id: 'p7', category: 'Books', name: 'Sci-Fi Epic Novel', price: 2500, description: 'A thrilling science fiction novel with intricate world-building and compelling characters.', imageUrl: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1725449764i/218471348.jpg', reviews: [{ userName: 'Grace', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: 'p8', category: 'Sports & Outdoors', name: 'Yoga Mat', price: 4000, description: 'Durable and non-slip yoga mat, ideal for all types of yoga and fitness exercises.', imageUrl: 'https://photos.cdn-outlet.com/yo-images/userfiles/guide/image/brett/screen%20shot%202015-09-03%20at%209_54_51%20pm.png', reviews: [{ userName: 'Heidi', rating: 4, comment: 'Good grip, a bit thin for my knees.' }] },
+            { id: 'p9', category: 'Beauty', name: 'Natural Face Serum', price: 6500, description: 'Organic face serum with hyaluronic acid for hydration and anti-aging benefits.', imageUrl: 'https://img.drz.lazcdn.com/static/pk/p/1a4c65d0ac1f86dd321acec45f8f6ca1.png_960x960q80.png_.webp', reviews: [{ userName: 'Ivy', rating: 5, comment: 'My skin feels amazing after just a week!' }] },
+            { id: 'p10', category: 'Kids & Toys', name: 'Wooden Building Blocks', price: 5500, description: 'Classic wooden building blocks set for creative play and developing motor skills.', imageUrl: 'https://palletfurniture.in/cdn/shop/files/3_b1a72929-1f32-4ab7-a362-23b1d72c9de1.png?v=1714476592&width=533', reviews: [{ userName: 'Jack', rating: 5, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p11', category: 'Pet Supplies', name: 'Orthopedic Dog Bed', price: 13000, description: 'Comfortable orthopedic dog bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://m.media-amazon.com/images/I/91E5MptyF3L.jpg', reviews: [{ userName: 'Karen', rating: 4, comment: 'My dog sleeps soundly, but it\'s a bit bulky.' }] },
+            { id: 'p12', category: 'Automotive', name: 'Car Vacuum Cleaner', price: 7000, description: 'Portable and powerful car vacuum cleaner for quick and easy interior cleaning.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxfbw8BHNtrxbipwL96-IM0p7v5v5UnlPhiw&s', reviews: [{ userName: 'Liam', rating: 3, comment: 'Decent suction, battery life could be better.' }] },
+            { id: 'p13', category: 'Garden & Outdoor', name: 'Smart Garden System', price: 18000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSKAgiaSlpmnvGlhkKbj-1x-rerRq-Irbjtsg&s', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p14', category: 'Jewelry', name: 'Silver Pendant Necklace', price: 10000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://silverstones.pk/cdn/shop/files/PearlJewelrySpecialDiscountInstagramPost_16.jpg?v=1750294710&width=1080', reviews: [{ userName: 'Noah', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p15', category: 'Food & Drink', name: 'Artisan Coffee Beans', price: 2300, description: 'Premium single-origin coffee beans, medium roast with notes of chocolate and caramel.', imageUrl: 'https://thewoods.net.in/wp-content/uploads/2021/02/hotcofee.jpg', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p16', category: 'Health & Wellness', name: 'Aromatherapy Diffuser', price: 5000, description: 'Ultrasonic essential oil diffuser with LED lighting, creates a relaxing ambiance.', imageUrl: 'https://static-01.daraz.pk/p/b8f274cde670aa36418a04027e523f8c.jpg', reviews: [{ userName: 'Peter', rating: 4, comment: 'Works well, but the light is a bit bright.' }] },
+            { id: 'p19', category: 'Electronics', name: 'Security Camera', price: 8000, description: 'Indoor security camera with motion detection and night vision.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT-F63ObPvPD59x6rlrDfZ7RJBUBlIAIPAZtA&s', reviews: [{ userName: 'Maha', rating: 4, comment: 'Camera is very helpful and this camera quality is unbelieveable' }] },
+            { id: 'p20', category: 'Electronics', name: 'laptop', price: 60000, description: 'Powerful laptop for work and entertainment, lightweight design.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaOjXB0n2hAMtnMiQb4g6MZysNyyLQrZ2n7Q&s', reviews: [{ userName: 'ahmad', rating: 3, comment: 'good quality ' }] },
+            { id: 'p21', category: 'Electronics', name: 'LED', price: 50000, description: 'LED TV shows clearer and brighter pictures with lower power use.', imageUrl: 'https://cdn.mos.cms.futurecdn.net/FnHWbSEffhzsKKsZeCsjBb-1200-80.jpg', reviews: [{ userName: 'sara', rating:4 , comment: 'Led is very usefull' }] },
+            { id: 'p22', category: 'Electronics', name: 'Printer', price: 65000, description: 'A printer gives you a paper copy of your digital work, like notes or photos', imageUrl: 'https://i5.walmartimages.com/seo/Epson-Expression-Home-XP-4105-Wireless-All-in-One-Color-Inkjet-Printer-WiFi_a1e72e07-c525-45b9-a40a-0f9630f99f56_1.f4d8b0c17a102dae59da29d814bdbaf3.jpeg', reviews: [{ userName: 'ahmad', rating: 3, comment: 'good quality ' }] },
+            { id: 'p23', category: 'Beauty', name: 'Moisturizing Cream', price: 2500, description: 'Hydrating and nourishing cream for all skin types.', imageUrl: 'https://faceitbyzk.com/cdn/shop/files/Serum_Edit_popopo.jpg?v=1720711496&width=1946', reviews: [{ userName: 'taha', rating: 4, comment: 'wonderful product!' }] },
+            { id: 'p24', category: 'Beauty', name: 'Lipstick Set', price: 3500, description: 'Collection of long-lasting lipsticks in various shades.', imageUrl: 'https://ameena.pk/cdn/shop/files/131947851_139679754410120_5545256128237950133_n.webp?v=1721927387', reviews: [{ userName: 'manahil', rating: 5, comment: 'My skin feels soft and silky after few days!' }] },
+            { id: 'p25', category: 'Beauty', name: 'Eye Shadow Palette', price: 4000, description: 'Versatile eye shadow palette with matte and shimmer shades.', imageUrl: 'https://onlinemart.com.pk/cdn/shop/files/48080684-de05-4c1c-9b26-703194ecf1a6_1445x.jpg?v=1750865672', reviews: [{ userName: 'maha', rating: 5, comment: 'good quality' }] },
+            { id: 'p26', category: 'Beauty', name: 'Blush', price: 1500, description: 'Powder blush for a natural, healthy glow.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ8H4fhSHTvx0uaNPuHcGnFes4nbxzJtbEYag&s', reviews: [{ userName: 'Ivy', rating: 5, comment: 'My skin feels amazing after just a week!' }] },
+            { id: 'p26', category: 'Beauty', name: 'Perfume', price: 6500, description: 'Elegant perfume with a floral and musky scent.', imageUrl: 'https://mankindd.com/cdn/shop/files/WhatsAppImage2024-10-30at5.58.35PM_1_640x.jpg?v=1730464516', reviews: [{ userName: 'Ivy', rating: 5, comment: 'My skin feels amazing after just a week!' }] },
+            { id: 'p27', category: 'Beauty', name: 'brushes', price: 2500, description: 'Beauty brushes help apply and blend makeup smoothly for a flawless look. Each brush has a unique use like foundation, eyeshadow, or blush.', imageUrl: 'https://lotshop.pk/cdn/shop/files/premium-10-piece-makeup-brushes-set-professional-quality-lotshoppk-195343.jpg?v=1751904678&width=1946', reviews: [{ userName: 'Ivy', rating: 5, comment: 'My skin feels amazing after just a week!' }] },
+            { id: 'p28', category: 'Beauty', name: 'Eyeliner', price: 1000, description: 'Eyeliner defines and enhances the eyes, creating bold or subtle looks. It comes in pencil, liquid, or gel form for easy styling.', imageUrl: 'https://m.media-amazon.com/images/I/61Ei8-0n-3L._UF1000,1000_QL80_.jpg', reviews: [{ userName: 'Ivy', rating: 5, comment: 'My skin feels amazing after just a week!' }] },
+            { id: 'p29', category: 'Books', name: 'Mystery Thriller', price: 1250, description: 'A gripping mystery thriller with unexpected twists and turns.', imageUrl: 'https://untitledthoughts.com/cdn/shop/files/mystery-thriller_11041ea4-819c-4eee-901e-bdae3556a20f.jpg?v=1721757369', reviews: [{ userName: 'Grace', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: '30', category: 'Books', name: 'Cooking Recipe Book', price: 2200, description: 'A comprehensive cooking recipe book for all skill levels.', imageUrl: 'https://www.prestophoto.com/storage/static/landing/cook-book/inspiration-header.jpg', reviews: [{ userName: 'Grace', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: '31', category: 'Books', name: 'Self-Help Guide', price: 1800, description: 'A practical self-help guide to improve productivity and well-being.', imageUrl: 'https://substackcdn.com/image/fetch/$s_!leWC!,w_1200,h_600,c_fill,f_jpg,q_auto:good,fl_progressive:steep,g_auto/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Feaef4927-2923-4c57-8adf-b217f1d53c4a_1080x1080.png', reviews: [{ userName: 'Grace', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: '32', category: 'Books', name: 'Fantasy Epic', price: 4000, description: 'An epic fantasy novel with a rich world and compelling characters.', imageUrl: 'https://i0.wp.com/thequilltolive.com/wp-content/uploads/2022/03/epic-series-v2.jpg?fit=672%2C432&ssl=1', reviews: [{ userName: 'Grace', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: 'p33', category: 'Clothing', name: 'Casual T-Shirt mens', price: 3500, description: 'Comfortable 100% cotton t-shirt for everyday wear. Available in multiple colors and sizes.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXC1G1goZNWUskjubBDvYS_3IqzDzTHRuaKQ&s', reviews: [{ userName: 'Charlie', rating: 5, comment: 'Very soft and fits perfectly.' }] },
+            { id: 'p34', category: 'Clothing', name: 'Denim Jeans mens', price: 8500, description: 'Classic fit denim jeans, durable and stylish for any occasion. Features five pockets and a comfortable stretch.', imageUrl: 'https://www.houseofcalibre.com/wp-content/uploads/2024/02/DC-Men-Classic-Look-Original-Regular-Fit-Denim-Jeans-Pant.jpg', reviews: [{ userName: 'Diana', rating: 4, comment: 'Stylish and comfortable, a bit long.' }] },
+            { id: 'p35', category: 'Clothing', name: 'Casual T-Shirt women', price: 3500, description: 'Comfortable 100% cotton t-shirt for everyday wear. Available in multiple colors and sizes.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSHsjRhPUlVxVKPN3d8luM6LdNPhkk3c_8Hrg&s', reviews: [{ userName: 'Charlie', rating: 5, comment: 'Very soft and fits perfectly.' }] },
+            { id: 'p36', category: 'Clothing', name: 'Denim Jeans women', price: 8500, description: 'Classic fit denim jeans, durable and stylish for any occasion. Features five pockets and a comfortable stretch.', imageUrl: 'https://clubdeapparel.pk/cdn/shop/files/c7851a89-6202-4145-bb17-74b15e5d305c.jpg?v=1734459174', reviews: [{ userName: 'Diana', rating: 4, comment: 'Stylish and comfortable, a bit long.' }] },
+            { id: 'p35', category: 'Clothing', name: 'Casual T-Shirt women', price: 3500, description: 'Comfortable 100% cotton t-shirt for everyday wear. Available in multiple colors and sizes.', imageUrl: 'https://m.media-amazon.com/images/I/614YTDcPziL._AC_SL1500_.jpg', reviews: [{ userName: 'Charlie', rating: 5, comment: 'Very soft and fits perfectly.' }] },
+            { id: 'p36', category: 'Clothing', name: 'Denim Jeans women', price: 8500, description: 'Classic fit denim jeans, durable and stylish for any occasion. Features five pockets and a comfortable stretch.', imageUrl: 'https://rollasjeans.com/_next/image?url=https%3A%2F%2Fcdn.shopify.com%2Fs%2Ffiles%2F1%2F0258%2F5896%2F5558%2Ffiles%2F13497L-5369-BRADBLUE_0271.jpg%3Fv%3D1738213795&w=3840&q=80', reviews: [{ userName: 'Diana', rating: 4, comment: 'Stylish and comfortable, a bit long.' }] },
+            { id: 'p37', category: 'Garden & Outdoor', name: 'Smart outdoor System', price: 30000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://i.ytimg.com/vi/l73m4Q8Pyz4/maxresdefault.jpg', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p38', category: 'Garden & Outdoor', name: 'Smart outdoor System', price: 50000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQm_qFzETsrWn3WO3uq4bkQ7ManacZjajLoaA&s', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p39', category: 'Garden & Outdoor', name: 'Smart outdoor System', price: 48000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://contentgrid.homedepot-static.com/hdus/en_US/DTCCOMNEW/Articles/summer-outdoor-gardening-101-step-1.jpg', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p40', category: 'Garden & Outdoor', name: 'Smart outdoor System', price: 58000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQYFG7RRvLv0RL8yvbKBFpzzqRzUwf2QXZw4Q&s', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p40', category: 'Garden & Outdoor', name: 'Smart garden System', price: 58000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Keukenhof-Szmurlo.jpg/960px-Keukenhof-Szmurlo.jpg', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p40', category: 'Garden & Outdoor', name: 'Smart garden System', price: 58000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWSDC6mRY_-_CYa0FXrEs2pA7cGg5301HLHQ&s', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p40', category: 'Garden & Outdoor', name: 'Smart garden System', price: 58000, description: 'Automated indoor garden system for growing herbs and vegetables year-round.', imageUrl: 'https://www.minsterpaving.co.uk/wp-content/uploads/2024/09/517.jpg', reviews: [{ userName: 'Mia', rating: 5, comment: 'My herbs are thriving, so easy to use!' }] },
+            { id: 'p41', category: 'Automotive', name: 'Mirror', price: 5000, description: 'Portable and powerful mirror .', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQxLUAznWvxXk1iT6sKryg6l6_o7RPAJQZnuA&s', reviews: [{ userName: 'Liam', rating: 3, comment: 'Decent suction, battery life could be better.' }] },
+            { id: 'p42', category: 'Automotive', name: 'Tires', price: 7000, description: 'long time tiers.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTaQ-_J-uIKVUizN1DN_OJ67I6lS2-66PGnFQ&s', reviews: [{ userName: 'Liam', rating: 3, comment: 'Decent suction, battery life could be better.' }] },
+            { id: 'p43', category: 'Food & Drink', name: 'coke', price: 500, description: 'very tasty.', imageUrl: 'https://attachments-cdn-s.coub.com/coub_storage/coub/simple/cw_timeline_pic/da232014b93/9a207c041a9bf60cd29d0/1462537140_image.jpg', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p44', category: 'Food & Drink', name: 'Biryani', price: 250, description: 'yummy to eat.', imageUrl: 'https://www.cookwithnabeela.com/wp-content/uploads/2025/01/ChickenBiryani.webp', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p45', category: 'Food & Drink', name: 'pasta', price: 250, description: 'yummy to eat.', imageUrl: 'https://s.lightorangebean.com/media/20240914160809/Spicy-Penne-Pasta_-done.png', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p46', category: 'Food & Drink', name: 'white karahi', price: 250, description: 'yummy to eat.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgNX3UERL-XVkmJ_E_qONhOaDQuHI8PLV6NA&s', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p47', category: 'Food & Drink', name: 'Roll paratha', price: 250, description: 'yummy to eat.', imageUrl: 'https://fri-chicks.com/wp-content/uploads/2025/02/ZINGER-PARATHA-ROLL-1.jpg', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p43', category: 'Food & Drink', name: 'Sprite', price: 500, description: 'very tasty.', imageUrl: 'https://lahorebasket.com/cdn/shop/files/sprite-can-250-ml-377487.jpg?v=1737619801', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p43', category: 'Food & Drink', name: 'Mirinda', price: 500, description: 'very tasty.', imageUrl: 'https://www.cartpk.com/media/catalog/product/cache/ccf016c098f64509830f131aff46d4ef/m/i/mirinda-can-150ml-x-1pc.jpg', reviews: [{ userName: 'Olivia', rating: 5, comment: 'Best coffee I\'ve had in a long time!' }] },
+            { id: 'p44', category: 'Jewelry', name: 'Rings', price: 5000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://millysmarvels.co.uk/cdn/shop/files/DSCN6279.jpg?v=1694611428&width=533', reviews: [{ userName: 'sadia', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p45', category: 'Jewelry', name: 'bridle set golden', price: 20000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://assets0.mirraw.com/images/9163187/3548443_long_webp.webp?1688542871', reviews: [{ userName: 'Noah', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p46', category: 'Jewelry', name: 'bridle set silver', price: 17000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://images.squarespace-cdn.com/content/v1/56015302e4b01fb31d19b1a8/1620764452266-3QCHICHOFKB9K1HQ1G3T/IMG_20210508_193302_635.jpg?format=1000w', reviews: [{ userName: 'Noah', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p47', category: 'Jewelry', name: 'crown', price: 7000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://m.media-amazon.com/images/I/81hcVI7R0KL._SL1500_.jpg', reviews: [{ userName: 'Noah', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p48', category: 'Jewelry', name: 'Necklace', price: 10000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://stackersaustralia.com.au/media/catalog/category/jewellery-boxes-slider-necklace-layer.jpg', reviews: [{ userName: 'palwisha', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p49', category: 'Jewelry', name: 'jhumar', price: 1000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://manhasaccessories.com/cdn/shop/files/Hyderabadi_Jhumar_Online.jpg?v=1748706096', reviews: [{ userName: 'amina', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p50', category: 'Jewelry', name: 'earrings', price: 1000, description: 'Elegant sterling silver pendant necklace with a delicate chain, perfect for any outfit.', imageUrl: 'https://img.drz.lazcdn.com/static/pk/p/331d0e5d4bed89f0699edcaf20c52657.jpg_720x720q80.jpg', reviews: [{ userName: 'Noah', rating: 5, comment: 'Beautiful and high quality, great gift.' }] },
+            { id: 'p51', category: 'Sports & Outdoors', name: 'Water Bottle', price: 1500, description: 'Durable and non-slip yoga mat, ideal for all types of yoga and fitness exercises.', imageUrl: 'https://apricot.com.pk/cdn/shop/files/Colorful-Gradient-Steel-Cover-with-Time-Scale-Water-bottle-5469Aqua-Over-Lilac-Apricot-7024.jpg?v=1727599600&width=1445', reviews: [{ userName: 'Heidi', rating: 3 , comment: 'Good grip, a bit thin for my knees.' }] },
+            { id: 'p52', category: 'Sports & Outdoors', name: 'Camping Tent', price: 15000, description: 'Durable and non-slip yoga mat, ideal for all types of yoga and fitness exercises.', imageUrl: 'https://media.istockphoto.com/id/1407243007/photo/tent-at-glamping-night.jpg?s=612x612&w=0&k=20&c=boSnmAlpGzHsFodo4q_Uhc9BrdeAK9JEl0p0kW7HamU=', reviews: [{ userName: 'Heidi', rating: 5, comment: 'Good grip, a bit thin for my knees.' }] },
+            { id: 'p53', category: 'Sports & Outdoors', name: 'Fitness Tracker', price: 8000, description: 'Durable and non-slip yoga mat, ideal for all types of yoga and fitness exercises.', imageUrl: 'https://media.istockphoto.com/id/1345812741/photo/white-fitness-tracker.jpg?s=612x612&w=0&k=20&c=JrVEAtnY50pnVtUN_gG4hEExZlOP606kQ7XWTEItzkM=', reviews: [{ userName: 'Maham', rating: 5, comment: 'its quality is so goood.' }] },
+            { id: 'p54', category: 'Kids & Toys', name: 'Board Game', price: 7500, description: 'Classic wooden building blocks set for creative play and developing motor skills.', imageUrl: 'https://planetx.pk/wp-content/uploads/2025/03/PX-12203-1.webp', reviews: [{ userName: 'Jack', rating: 5, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p55', category: 'Kids & Toys', name: 'Remote Control Car', price: 15000, description: 'Classic wooden building blocks set for creative play and developing motor skills.', imageUrl: 'https://toyzee.pk/wp-content/uploads/2022/12/1_ebdebc26-299f-4b43-98b4-c5b65efcbd7a_1280x.webp', reviews: [{ userName: 'Jack', rating: 5, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p56', category: 'Pet Supplies', name: 'Orthopedic Dog Bed', price: 15000, description: 'Comfortable orthopedic dog bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://pup-show.com/cdn/shop/products/Artboard5_1024x1024.jpg?v=1603862406', reviews: [{ userName: 'nouman', rating: 3, comment: 'My dog sleeps soundly, but it\'s a bit bulky.' }] },
+            { id: 'p57', category: 'Pet Supplies', name: 'Orthopedic cat Bed', price: 13000, description: 'Comfortable orthopedic dog bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://funnyfuzzy.com/cdn/shop/files/ClassicalPlaidHouseOrthopedicCatBed-RetreatCabin_10.jpg?v=1739954979', reviews: [{ userName: 'farzam', rating: 4, comment: 'My cat is so cute' }] },
+            { id: 'p58', category: 'Pet Supplies', name: 'Orthopedic cat Bed', price: 16000, description: 'Comfortable orthopedic dog bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://themellowdog.com/cdn/shop/products/CharcoalTMD_3df17868-d9b9-48c0-b6c7-1fc25af4f86c.jpg?v=1672616143&width=1445', reviews: [{ userName: 'ali', rating: 5, comment: 'My cat sleeps soundly, and peacefully' }] },
+            { id: 'p59', category: 'Automotive', name: 'Car polish', price: 2000, description: 'shinny look.', imageUrl: 'https://bigsmobile.com/wp-content/uploads/2022/07/car-polishing-products.jpeg', reviews: [{ userName: 'manahil', rating: 3, comment: 'polish is usefull.' }] },
+            { id: 'p60', category: 'Automotive', name: 'Car speaker', price: 10000, description: 'amazing sound quality', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTqpwI3DFgLCdBpWBGJJaQL5PPVktx7o3CVbw&s', reviews: [{ userName: 'mehreen', rating: 3, comment: 'amazing sound.' }] },
+            { id: 'p61', category: 'Automotive', name: 'Car Tool kit', price: 9000, description: 'every tool kit of car.', imageUrl: 'https://www.cnet.com/a/img/resize/ff7e57ba4a99fad20eaa66101f9e0a59e4e9b6eb/hub/2021/03/03/490f3066-10c5-4cab-9bc6-66938e8c30e2/crescent-170-piece-tool-set.jpg?auto=webp&fit=crop&height=360&width=640', reviews: [{ userName: 'Liam', rating: 3, comment: 'Decent suction, battery life could be better.' }] },
+            { id: 'p62', category: 'Automotive', name: 'seat cover', price: 4000, description: 'clean and soft.', imageUrl: 'https://lahoreauto.pk/wp-content/uploads/2025/01/Car-Seat-Cover.jpg', reviews: [{ userName: 'sadia', rating: 5, comment: 'covers are soft.' }] },              
+            { id: 'p63', category: 'Automotive', name: 'Led highlights of car', price: 9000, description: 'light reflection is soo cool.', imageUrl: 'https://thumbs.dreamstime.com/b/modern-car-bright-led-headlights-driving-night-generic-headlight-lamps-glowing-vector-illustration-139727930.jpg', reviews: [{ userName: 'sadia', rating: 5, comment: 'light quality is trustable.' }] },       
+            { id: 'p64', category: 'Books', name: 'Computer Network', price: 500, description: 'A computer network is a group of connected computers that can share data, files, and resources like printers and the internet.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR1zBMYzTCu6CoLWYUjmZmCsSMV52hu9lBytw&s', reviews: [{ userName: 'Grace', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: 'p65', category: 'Books', name: 'Harry Potter Series', price: 4000, description: 'The Harry Potter series is a magical adventure about a young wizard, Harry, who battles evil while discovering friendship.', imageUrl: 'https://assets.brightspot.abebooks.a2z.com/dims4/default/0270a60/2147483647/strip/true/crop/360x420+0+0/resize/360x420!/format/jpg/quality/90/?url=http%3A%2F%2Fabebooks-brightspot.s3.us-west-2.amazonaws.com%2Fee%2F92%2Fe0441b4348bb914f31a10eee5eba%2Fhalf-blood-prince.png', reviews: [{ userName: 'ahmad', rating: 5, comment: 'Couldn\'t put it down!' }] },
+            { id: 'p66', category: 'Pet Supplies', name: 'parrot', price: 9000, description: 'Comfortable orthopedic parrot bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://problemparrots.co.uk/wp-content/uploads/2024/06/Blue-budgie-homepage.jpg', reviews: [{ userName: 'ali', rating: 5, comment: 'My parrot is so amazing' }] },             
+            { id: 'p67', category: 'Pet Supplies', name: 'Rabbit', price: 8000, description: ' Rabbit bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://hips.hearstapps.com/hmg-prod/images/baby-rabbit-in-meadow-royalty-free-image-1717078659.jpg?crop=0.88763xw:1xh;center,top&resize=1200:*', reviews: [{ userName: 'ali', rating: 5, comment: 'My parrot is so amazing' }] },
+            { id: 'p68', category: 'Pet Supplies', name: 'Duck', price: 6000, description: 'Duck bed designed for joint support and ultimate pet comfort.', imageUrl: 'https://pethelpful.com/.image/w_3840,q_auto:good,c_fill,ar_4:3/MTk3MTM4Mzc3OTk1MTk5ODA3/pekin-ducks.jpg', reviews: [{ userName: 'maha', rating: 5, comment: 'My parrot is so amazing' }] },
+            { id: 'p69', category: 'Pet Supplies', name: 'Goat', price: 9000, description: 'goat designed for joint support and ultimate pet comfort.', imageUrl: 'https://marialouisedesign.com/wp-content/uploads/2022/03/Bottle-Feeding-Goats-6.jpg', reviews: [{ userName: 'manahil', rating: 5, comment: 'My parrot is so amazing' }] },
+            { id: 'p70', category: 'Kids & Toys', name: 'Doll house', price: 4500, description: 'A mini home where kids play and arrange tiny furniture with dolls', imageUrl: 'https://www.toyworld.co.nz/cdn/shop/files/BARBIE_20DREAMHOUSE_20POOL_20PARTY_20DOLL_20HOUSE_20PLAYSET1_d52ca09d-7747-4d31-9f4e-b1ad3fe56db9.jpg?v=1732597536', reviews: [{ userName: 'Jack', rating: 5, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p71', category: 'Kids & Toys', name: 'puzzle', price: 4400, description: 'A brain game where kids join pieces to make a full picture', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQH-s9zw72fE4m0MwpieQFzbQ41REW_7qLLLw&s', reviews: [{ userName: 'maham', rating: 5, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p72', category: 'Kids & Toys', name: 'Train toy', price: 3000, description: 'A fun toy train that kids push or run on tracks.', imageUrl: 'https://media.gettyimages.com/id/157400439/photo/miniature-train.jpg?s=612x612&w=gi&k=20&c=1hwjlGHBIgUp4TEVTXX5sLVHwCI7ktTOV17MmQ4xiLA=', reviews: [{ userName: 'Jack', rating: 5, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p73', category: 'Kids & Toys', name: 'Teddy bear', price: 12000, description: 'A soft, cuddly stuffed toy that children love to hug.', imageUrl: 'https://thestufftoys.com/cdn/shop/files/EC9C1CCD-4F3A-49F1-9DBC-4337942C13C2_1024x1024@2x.jpg?v=1735775614', reviews: [{ userName: 'Jack', rating: 3, comment: 'My kids love these, very sturdy.' }] },
+            { id: 'p74', category: 'Kids & Toys', name: 'Colouring book', price: 400, description: 'A book with pictures for kids to fill with colors.', imageUrl: 'https://paramountbooks.com.pk/cdn/shop/files/9555430503207.jpg?v=1743232260', reviews: [{ userName: 'manahil', rating: 4, comment: 'My kids love it.' }] },
+            { id: 'p75', category: 'Sports & Outdoors', name: 'Resistance Bands Set', price: 2000, description: 'Stretchy fitness bands used for exercise and muscle training.', imageUrl: 'https://oshi.pk/cdn/shop/files/resistance-band-set-15214-252.jpg?crop=center&height=461&v=1733348618&width=461', reviews: [{ userName: 'Maham', rating: 5, comment: 'its quality is so goood.' }] },
+            { id: 'p76', category: 'Sports & Outdoors', name: 'Badminton Racket', price: 1500, description: 'A lightweight racket used to hit the shuttlecock in badminton.', imageUrl: 'https://hudsonreporter.com/wp-content/uploads/2024/12/Everything-You-Need-To-Know-About-Badminton_FI.jpg', reviews: [{ userName: 'Maham', rating: 5, comment: 'its quality is so goood.' }] },
+            { id: 'p77', category: 'Sports & Outdoors', name: 'Bat & ball', price:5000, description: 'A classic outdoor set for playing cricket or casual ball games.', imageUrl: 'https://cdn.mafrservices.com/sys-master-root/h3b/h4c/29206792568862/227765_main.jpg?im=Resize=480', reviews: [{ userName: 'Maham', rating: 5, comment: 'its quality is so goood.' }] },
+            { id: 'p78', category: 'Health & Wellness', name: 'First aid kit', price: 3000, description: 'A box with basic medical items for treating small injuries at home.', imageUrl: 'https://insights.ibx.com/wp-content/uploads/2019/06/first-aid-kit-screenshot.png', reviews: [{ userName: 'Peter', rating: 4, comment: 'Works well, but the light is a bit bright.' }] },
+            { id: 'p79', category: 'Health & Wellness', name: 'Blood pressure monitor', price: 7000, description: 'A device to check and track your blood pressure easily.', imageUrl: 'https://static-01.daraz.pk/p/092230ccd47a863896c561fe55234242.jpg', reviews: [{ userName: 'Peter', rating: 4, comment: 'Works well, but the light is a bit bright.' }] },
+            { id: 'p80', category: 'Health & Wellness', name: 'Face mask', price: 200, description: 'A protective cover for the nose and mouth to prevent germs and dust.', imageUrl: 'https://www.ghurkitrust.org.pk/gtth/wp-content/uploads/2017/02/1-thickbox_default-1.jpg', reviews: [{ userName: 'Peter', rating: 4, comment: 'Works well, but the light is a bit bright.' }] },
+            { id: 'p81', category: 'Health & Wellness', name: 'Hand sanitizer', price: 200, description: 'A quick-dry liquid or gel used to kill germs without water.', imageUrl: 'https://pk.hemaniherbals.com/images/thumbs/0007254_antiseptic-hand-sanitizer-250ml_550.jpeg', reviews: [{ userName: 'Peter', rating: 4, comment: 'Works well, but the light is a bit bright.' }] },
+            { id: 'p82', category: 'Home Goods', name: 'Throw Pillow', price: 2500, description: 'A small soft cushion used for comfort and decoration on sofas or beds.', imageUrl: 'https://pyxis.nymag.com/v1/imgs/818/04d/1dc05203d12a5b8dab2cb6e440ced47db4.rsquare.w600.jpg', reviews: [{ userName: 'waseem', rating: 5, comment: 'easy to clean.' }] },
+            { id: 'p83', category: 'Home Goods', name: 'Wall Art Print', price: 5000, description: 'A printed picture or design to hang on walls for a stylish look.', imageUrl: 'https://m.media-amazon.com/images/I/71zvuAr64VL.jpg', reviews: [{ userName: 'samreen', rating: 4, comment: 'looks beautiful' }] },
+            { id: 'p84', category: 'Home Goods', name: 'Scented Candles Set', price: 2000, description: 'Fragrant candles that create a calm and cozy atmosphere.', imageUrl: 'https://andme.in/cdn/shop/files/71NAZkw4a-L.jpg?v=1721917085', reviews: [{ userName: 'laiba', rating: 5, comment: 'trustable.' }] },
+            { id: 'p85', category: 'Home Goods', name: 'Bedsheet', price: 3000, description: 'A fabric layer spread over the bed for comfort and cleanliness.', imageUrl: 'https://tulips.com.pk/cdn/shop/files/DUVETCOVERS_40ee3de7-ffc0-4f98-beb5-a51c639b2651.jpg?v=1753172485&width=600', reviews: [{ userName: 'maha', rating: 3, comment: 'the stuff is soo nice.' }] },
+            { id: 'p86', category: 'Home Goods', name: 'Mirror', price: 10000, description: 'A glass surface that reflects your image, often used for dressing.', imageUrl: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcScHgG6m8VJVmllB07vUYtVWXC1P2xa3wgXvg&s', reviews: [{ userName: 'Eve', rating: 5, comment: 'mirror is special' }] },
+            { id: 'p87', category: 'Home Goods', name: 'Laundry basket', price: 9000, description: ' A container used to collect and carry dirty clothes.', imageUrl: 'https://img.drz.lazcdn.com/static/pk/p/0a358fb7e04b0524f74ae6294d7e808a.jpg_720x720q80.jpg', reviews: [{ userName: 'sana', rating: 3, comment: 'best way to keep cloth together.' }] },
+       ];
+        let selectedCategory = null;
+        let selectedProduct = null;
+        let orderConfirmed = false;
+        let isAdminAuthenticated = false; // New state for admin panel access
+
+        // Admin password for demo purposes (In a real app, this would be secured differently)
+        const ADMIN_PASSWORD = 'manaadmin';
+
+        // Firebase variables
+        let app;
+        let db;
+        let auth;
+        let userId = null; // Stores Firebase user UID
+        let userEmail = null; // Stores Firebase user email
+
+        // --- DOM Elements ---
+        const contentArea = document.getElementById('content-area');
+        const productDetailModal = document.getElementById('product-detail-modal');
+        const modalContent = document.getElementById('modal-content');
+        const cartItemCount = document.getElementById('cart-item-count');
+        const authButtonsContainer = document.getElementById('auth-buttons');
+
+        // --- Firebase Initialization ---
+        window.onload = async function() {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+            if (Object.keys(firebaseConfig).length > 0) {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userEmail = user.email;
+                        console.log("Firebase User ID:", userId, "Email:", user.email);
+                        // In a real app, you'd fetch user-specific data (e.g., cart) here
+                        // Example: onSnapshot(doc(db, `artifacts/${appId}/users/${userId}/cart`), (docSnap) => { ... });
+                    } else {
+                        userId = null;
+                        userEmail = null;
+                        console.log("No Firebase user signed in.");
+                    }
+                    renderAuthButtons(); // Update auth buttons based on login state
+                    renderPage(currentPage); // Re-render current page to reflect auth state if needed
+                });
+
+                // Attempt anonymous sign-in if no user is logged in initially
+                if (!auth.currentUser && typeof __initial_auth_token !== 'undefined') {
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (error) {
+                        console.error("Firebase custom token sign-in error:", error);
+                    }
+                } else if (!auth.currentUser) {
+                     try {
+                        await signInAnonymously(auth);
+                    } catch (error) {
+                        console.error("Firebase anonymous sign-in error:", error);
+                    }
+                }
+
+            } else {
+                console.warn("Firebase config not provided. Running in demo mode without persistence or full authentication.");
+                // Render auth buttons even without Firebase for a basic UI
+                renderAuthButtons();
+            }
+
+            // Initial render
+            renderPage(currentPage);
+            updateCartCountDisplay();
+            lucide.createIcons(); // Initialize Lucide icons
+        };
+
+        // --- Utility Functions ---
+
+        /**
+         * Displays a temporary alert message on the screen.
+         * @param {string} message - The message to display.
+         * @param {string} type - 'success' for green, 'error' for red.
+         */
+        function alertMessage(message, type = 'success') {
+            const alertBox = document.createElement('div');
+            alertBox.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg text-white z-50 transition-transform transform ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} translate-x-0 opacity-100`;
+            alertBox.textContent = message;
+            document.body.appendChild(alertBox);
+
+            setTimeout(() => {
+                alertBox.classList.add('translate-x-full', 'opacity-0');
+                alertBox.addEventListener('transitionend', () => alertBox.remove());
+            }, 3000);
+        }
+
+        /**
+         * Formats a number as PKR currency.
+         * @param {number} amount - The amount to format.
+         * @returns {string} Formatted currency string.
+         */
+        function formatPKR(amount) {
+            return new Intl.NumberFormat('en-PK', {
+                style: 'currency',
+                currency: 'PKR',
+                minimumFractionDigits: 0, // PKR usually doesn't use decimals for small amounts
+                maximumFractionDigits: 0
+            }).format(amount);
+        }
+
+        /**
+         * Updates the display of the total items in the cart in the header.
+         */
+        function updateCartCountDisplay() {
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            if (totalItems > 0) {
+                cartItemCount.textContent = totalItems;
+                cartItemCount.classList.remove('hidden');
+            } else {
+                cartItemCount.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Generates a unique ID for new products.
+         * @returns {string} A unique product ID.
+         */
+        function generateProductId() {
+            return 'p' + (products.length > 0 ? Math.max(...products.map(p => parseInt(p.id.substring(1).replace('p', '')))) + 1 : 1);
+        }
+
+        /**
+         * Renders the login/logout buttons in the header based on authentication state.
+         */
+        function renderAuthButtons() {
+            authButtonsContainer.innerHTML = ''; // Clear previous buttons
+            if (userId && userEmail) {
+                authButtonsContainer.innerHTML = `
+                    <span class="text-white text-md font-medium mr-2 hidden md:inline">Hello, ${userEmail.split('@')[0]}!</span>
+                    <button id="nav-logout" class="flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                        <span>Logout</span>
+                    </button>
+                `;
+                document.getElementById('nav-logout').addEventListener('click', handleLogout);
+            } else {
+                authButtonsContainer.innerHTML = `
+                    <button id="nav-login" class="flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="log-in" class="w-5 h-5"></i>
+                        <span>Login</span>
+                    </button>
+                    <button id="nav-signup" class="flex items-center space-x-2 text-lg font-medium hover:text-blue-200 transition-colors">
+                        <i data-lucide="user-plus" class="w-5 h-5"></i>
+                        <span>Sign Up</span>
+                    </button>
+                `;
+                document.getElementById('nav-login').addEventListener('click', () => renderPage('login'));
+                document.getElementById('nav-signup').addEventListener('click', () => renderPage('signup'));
+            }
+            lucide.createIcons();
+        }
+
+        // --- Cart Management Functions ---
+
+        /**
+         * Adds a product to the cart or increments its quantity if already present.
+         * @param {object} product - The product object to add.
+         */
+        function addToCart(product) {
+            const existingItem = cart.find(item => item.id === product.id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({ ...product, quantity: 1 });
+            }
+            updateCartCountDisplay();
+            alertMessage(`${product.name} added to cart!`);
+            // In a real app, update Firestore cart here
+            // if (db && userId) { setDoc(doc(db, `artifacts/${appId}/users/${userId}/cart`, product.id), { quantity: existingItem ? existingItem.quantity : 1 }); }
+        }
+
+        /**
+         * Updates the quantity of a product in the cart.
+         * Removes the item if quantity is 0 or less.
+         * @param {string} productId - The ID of the product.
+         * @param {number} newQuantity - The new quantity.
+         */
+        function updateCartQuantity(productId, newQuantity) {
+            if (newQuantity <= 0) {
+                cart = cart.filter(item => item.id !== productId);
+            } else {
+                const item = cart.find(item => item.id === productId);
+                if (item) {
+                    item.quantity = newQuantity;
+                }
+            }
+            updateCartCountDisplay();
+            renderCartPage(); // Re-render cart to reflect changes
+            // In a real app, update Firestore cart here
+            // if (db && userId) {
+            //     if (newQuantity <= 0) { deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/cart`, productId)); }
+            //     else { setDoc(doc(db, `artifacts/${appId}/users/${userId}/cart`, productId), { quantity: newQuantity }); }
+            // }
+        }
+
+        /**
+         * Removes a product entirely from the cart.
+         * @param {string} productId - The ID of the product to remove.
+         */
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id !== productId);
+            updateCartCountDisplay();
+            renderCartPage(); // Re-render cart
+            alertMessage('Item removed from cart.', 'error');
+            // In a real app, delete from Firestore cart here
+            // if (db && userId) { deleteDoc(doc(db, `artifacts/${appId}/users/${userId}/cart`, productId)); }
+        }
+
+        /**
+         * Clears all items from the cart.
+         */
+        function clearCart() {
+            cart = [];
+            updateCartCountDisplay();
+            // In a real app, clear Firestore cart here
+            // if (db && userId) { // Implement batch delete or collection clear logic }
+        }
+
+        // --- Product Management Functions (for Admin Panel) ---
+
+        /**
+         * Adds a new product to the products array.
+         * @param {object} newProduct - The product object to add.
+         */
+        function addProduct(newProduct) {
+            products.push({ ...newProduct, id: generateProductId(), reviews: [] }); // New products start with no reviews
+            alertMessage('Product added successfully!');
+            renderAdminPanel(); // Re-render admin panel to show new product
+            // In a real app, add to Firestore products collection here
+            // if (db) { addDoc(collection(db, `artifacts/${appId}/public/data/products`), newProduct); }
+        }
+
+        /**
+         * Updates an existing product in the products array.
+         * @param {object} updatedProduct - The product object with updated details.
+         */
+        function updateProduct(updatedProduct) {
+            products = products.map(p => p.id === updatedProduct.id ? { ...updatedProduct, reviews: p.reviews } : p); // Preserve reviews
+            alertMessage('Product updated successfully!');
+            renderAdminPanel(); // Re-render admin panel
+            // In a real app, update Firestore product document here
+            // if (db) { setDoc(doc(db, `artifacts/${appId}/public/data/products`, updatedProduct.id), updatedProduct); }
+        }
+
+        /**
+         * Deletes a product from the products array.
+         * @param {string} productId - The ID of the product to delete.
+         */
+        function deleteProduct(productId) {
+            products = products.filter(p => p.id !== productId);
+            alertMessage('Product deleted successfully!', 'error');
+            renderAdminPanel(); // Re-render admin panel
+            // In a real app, delete from Firestore product document here
+            // if (db) { deleteDoc(doc(db, `artifacts/${appId}/public/data/products`, productId)); }
+        }
+
+        /**
+         * Adds a review to a specific product.
+         * @param {string} productId - The ID of the product to review.
+         * @param {object} review - The review object ({ userName, rating, comment }).
+         */
+        function addProductReview(productId, review) {
+            const productIndex = products.findIndex(p => p.id === productId);
+            if (productIndex !== -1) {
+                products[productIndex].reviews.push(review);
+                alertMessage('Review submitted successfully!');
+                renderProductDetailModal(); // Re-render modal to show new review
+                // In a real app, add review to Firestore sub-collection for the product
+                // if (db) { addDoc(collection(db, `artifacts/${appId}/public/data/products/${productId}/reviews`), review); }
+            }
+        }
+
+        // --- Authentication Functions ---
+
+        /**
+         * Handles user login with email and password.
+         * @param {string} email
+         * @param {string} password
+         */
+        
+        async function handleLogin(email, password) {
+            try {
+                if (!auth) {
+                    alertMessage("Firebase not initialized. Cannot log in.", "error");
+                    return;
+                }
+                await signInWithEmailAndPassword(auth, email, password);
+                alertMessage("Logged in successfully!");
+                renderPage('home'); // Redirect to home after login
+            } catch (error) {
+                console.error("Login error:", error);
+                alertMessage(`Login failed: ${error.message}`, "error");
+            }
+        }
+
+        /**
+         * Handles user registration with email and password.
+         * @param {string} email
+         * @param {string} password
+         */
+        async function handleSignUp(email, password) {
+            try {
+                if (!auth) {
+                    alertMessage("Firebase not initialized. Cannot sign up.", "error");
+                    return;
+                }
+                await createUserWithEmailAndPassword(auth, email, password);
+                alertMessage("Account created successfully! You are now logged in.");
+                renderPage('home'); // Redirect to home after sign up
+            } catch (error) {
+                console.error("Sign up error:", error);
+                alertMessage(`Sign up failed: ${error.message}`, "error");
+            }
+        }
+
+        /**
+         * Handles user logout.
+         */
+        async function handleLogout() {
+            try {
+                if (!auth) {
+                    alertMessage("Firebase not initialized. Cannot log out.", "error");
+                    return;
+                }
+                await signOut(auth);
+                isAdminAuthenticated = false; // Reset admin auth on user logout
+                alertMessage("Logged out successfully!");
+                renderPage('home'); // Redirect to home after logout
+            } catch (error) {
+                console.error("Logout error:", error);
+                alertMessage(`Logout failed: ${error.message}`, "error");
+            }
+        }
+
+        // --- Page Rendering Functions ---
+
+        /**
+         * Renders the specified page by updating the main content area.
+         * @param {string} pageName - The name of the page to render ('home', 'categories', 'products', 'cart', 'payment', 'order-confirmation', 'admin', 'login', 'signup', 'admin-auth').
+         */
+        function renderPage(pageName) {
+            currentPage = pageName;
+            contentArea.innerHTML = ''; // Clear previous content
+            productDetailModal.classList.add('hidden'); // Hide modal when changing pages
+
+            switch (currentPage) {
+                case 'home':
+                    renderHomePage();
+                    break;
+                case 'categories':
+                    renderCategoriesPage();
+                    break;
+                case 'products':
+                    renderProductListPage();
+                    break;
+                case 'cart':
+                    renderCartPage();
+                    break;
+                case 'payment':
+                    renderPaymentPage();
+                    break;
+                case 'order-confirmation':
+                    renderOrderConfirmationPage();
+                    break;
+                case 'admin':
+                    // Check admin password before rendering the actual admin panel
+                    if (isAdminAuthenticated) {
+                        renderAdminPanel();
+                    } else {
+                        renderAdminAuthPage();
+                    }
+                    break;
+                case 'login':
+                    renderLoginPage();
+                    break;
+                case 'signup':
+                    renderSignUpPage();
+                    break;
+                case 'admin-auth': // Explicitly render admin auth page
+                    renderAdminAuthPage();
+                    break;
+                default:
+                    renderHomePage();
+            }
+            // Re-initialize Lucide icons for newly rendered content
+            lucide.createIcons();
+        }
+
+        /**
+         * Renders the Home Page content.
+         */
+        function renderHomePage() {
+            contentArea.innerHTML = `
+                <div class="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-br from-blue-50 to-indigo-100 p-8 rounded-lg shadow-inner">
+                    <h2 class="text-6xl font-extrabold text-gray-800 mb-6 animate-fade-in-down">
+                        Welcome to <span class="text-indigo-600">My E-Shop!</span>
+                    </h2>
+                    <p class="text-xl text-gray-600 mb-10 text-center max-w-2xl animate-fade-in-up">
+                        Discover amazing products, from cutting-edge electronics to stylish apparel and essential home goods. Your one-stop shop for quality and convenience.
+                    </p>
+                    <button id="start-shopping-btn" class="px-10 py-4 bg-indigo-600 text-white text-xl font-semibold rounded-full shadow-lg hover:bg-indigo-700 transform hover:scale-105 transition-all duration-300 ease-in-out animate-bounce-in">
+                        Start Shopping
+                    </button>
+                    <div class="mt-12 text-gray-500 text-sm">
+                        ${userId ? `<p>You are logged in as: <span class="font-bold text-gray-700 break-all">${userEmail || userId}</span></p>` : '<p>Please <span class="font-bold cursor-pointer text-blue-600 hover:underline" id="home-login-link">Login</span> or <span class="font-bold cursor-pointer text-blue-600 hover:underline" id="home-signup-link">Sign Up</span> for a personalized experience.</p>'}
+                    </div>
+                </div>
+            `;
+            document.getElementById('start-shopping-btn').addEventListener('click', () => renderPage('categories'));
+            if (!userId) {
+                document.getElementById('home-login-link').addEventListener('click', () => renderPage('login'));
+                document.getElementById('home-signup-link').addEventListener('click', () => renderPage('signup'));
+            }
+        }
+
+        /**
+         * Renders the Categories Page content.
+         */
+        function renderCategoriesPage() {
+            const categories = [...new Set(products.map(p => p.category))].sort(); // Get unique categories and sort them
+            contentArea.innerHTML = `
+                <div class="container mx-auto p-8">
+                    <h2 class="text-4xl font-bold text-gray-800 mb-8 text-center">Shop by Category</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        ${categories.map(category => `
+                            <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 cursor-pointer overflow-hidden category-card" data-category="${category}">
+                                <img
+                                    src="https://placehold.co/400x250/F8F8F8/333333?text=${encodeURIComponent(category.replace(/ /g, '+'))}"
+                                    alt="${category}"
+                                    class="w-full h-48 object-cover rounded-t-xl"
+                                />
+                                <div class="p-6">
+                                    <h3 class="text-2xl font-semibold text-gray-800 text-center">${category}</h3>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.addEventListener('click', (event) => {
+                    selectedCategory = event.currentTarget.dataset.category;
+                    renderPage('products');
+                });
+            });
+        }
+
+        /**
+         * Renders the Product List Page content for the selected category.
+         */
+        function renderProductListPage() {
+            const filteredProducts = selectedCategory
+                ? products.filter(p => p.category === selectedCategory)
+                : products; // Show all if no category selected
+
+            contentArea.innerHTML = `
+                <div class="container mx-auto p-8">
+                    <button id="back-to-categories-btn" class="flex items-center text-blue-600 hover:text-blue-800 mb-6 font-medium transition-colors">
+                        <i data-lucide="chevron-left" class="w-5 h-5 mr-2"></i> Back to Categories
+                    </button>
+                    <h2 class="text-4xl font-bold text-gray-800 mb-8 text-center">
+                        ${selectedCategory ? `${selectedCategory} Products` : 'All Products'}
+                    </h2>
+                    ${filteredProducts.length === 0 ? `
+                        <p class="text-center text-gray-600 text-lg">No products found in this category.</p>
+                    ` : `
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                            ${filteredProducts.map(product => `
+                                <div class="bg-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 overflow-hidden flex flex-col product-card">
+                                    <img
+                                        src="${product.imageUrl}"
+                                        alt="${product.name}"
+                                        class="w-full h-48 object-cover rounded-t-xl"
+                                    />
+                                    <div class="p-6 flex flex-col flex-grow">
+                                        <h3 class="text-xl font-semibold text-gray-800 mb-2">${product.name}</h3>
+                                        <p class="text-gray-600 text-sm mb-3 flex-grow">${product.description.substring(0, 70)}...</p>
+                                        <p class="text-2xl font-bold text-indigo-600 mb-4">${formatPKR(product.price)}</p>
+                                        <button class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md view-details-btn" data-product-id="${product.id}">
+                                            View Details
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                </div>
+            `;
+            document.getElementById('back-to-categories-btn').addEventListener('click', () => renderPage('categories'));
+            document.querySelectorAll('.view-details-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const productId = event.currentTarget.dataset.productId;
+                    selectedProduct = products.find(p => p.id === productId);
+                    renderProductDetailModal();
+                });
+            });
+        }
+
+        /**
+         * Renders and displays the Product Detail Modal.
+         */
+        function renderProductDetailModal() {
+            if (!selectedProduct) return;
+
+            const reviewsHtml = selectedProduct.reviews && selectedProduct.reviews.length > 0 ?
+                selectedProduct.reviews.map(review => `
+                    <div class="border-b border-gray-200 pb-3 mb-3 last:border-b-0 last:pb-0">
+                        <div class="flex items-center mb-1">
+                            <span class="font-semibold text-gray-800 mr-2">${review.userName}</span>
+                            <span class="text-yellow-500">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</span>
+                        </div>
+                        <p class="text-gray-700 text-sm">${review.comment}</p>
+                    </div>
+                `).join('') :
+                '<p class="text-gray-600 text-sm">No reviews yet. Be the first to review!</p>';
+
+            modalContent.innerHTML = `
+                <img
+                    src="${selectedProduct.imageUrl}"
+                    alt="${selectedProduct.name}"
+                    class="w-full md:w-1/2 h-64 object-cover rounded-lg shadow-md"
+                />
+                <div class="flex-1">
+                    <h3 class="text-3xl font-bold text-gray-800 mb-3">${selectedProduct.name}</h3>
+                    <p class="text-lg font-semibold text-indigo-600 mb-4">${formatPKR(selectedProduct.price)}</p>
+                    <p class="text-gray-700 leading-relaxed mb-6">${selectedProduct.description}</p>
+                    <button id="add-to-cart-modal-btn" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md flex items-center justify-center space-x-2">
+                        <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                        <span>Add to Cart</span>
+                    </button>
+
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h4 class="text-xl font-bold text-gray-800 mb-4">Customer Reviews</h4>
+                        <div class="max-h-48 overflow-y-auto pr-2 mb-4">
+                            ${reviewsHtml}
+                        </div>
+
+                        <h4 class="text-xl font-bold text-gray-800 mb-4">Submit a Review</h4>
+                        ${userId ? `
+                            <form id="review-form" class="space-y-4">
+                                <div>
+                                    <label for="review-rating" class="block text-gray-700 text-sm font-bold mb-2">Rating</label>
+                                    <select id="review-rating" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                        <option value="">Select rating</option>
+                                        <option value="5">★★★★★ (Excellent)</option>
+                                        <option value="4">★★★★☆ (Very Good)</option>
+                                        <option value="3">★★★☆☆ (Good)</option>
+                                        <option value="2">★★☆☆☆ (Fair)</option>
+                                        <option value="1">★☆☆☆☆ (Poor)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="review-comment" class="block text-gray-700 text-sm font-bold mb-2">Comment</label>
+                                    <textarea id="review-comment" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 h-24" placeholder="Share your thoughts about this product..." required></textarea>
+                                </div>
+                                <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">
+                                    Submit Review
+                                </button>
+                            </form>
+                        ` : `
+                            <p class="text-gray-600">Please <span class="font-bold cursor-pointer text-blue-600 hover:underline" id="review-login-link">log in</span> to submit a review.</p>
+                        `}
+                    </div>
+                </div>
+            `;
+            productDetailModal.classList.remove('hidden');
+            document.getElementById('add-to-cart-modal-btn').addEventListener('click', () => {
+                addToCart(selectedProduct);
+                productDetailModal.classList.add('hidden');
+            });
+
+            if (userId) {
+                document.getElementById('review-form').addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    const rating = parseInt(document.getElementById('review-rating').value);
+                    const comment = document.getElementById('review-comment').value;
+                    if (rating && comment) {
+                        addProductReview(selectedProduct.id, {
+                            userName: userEmail ? userEmail.split('@')[0] : 'Guest', // Use email prefix or 'Guest'
+                            rating: rating,
+                            comment: comment
+                        });
+                        // Form will be reset by re-rendering the modal
+                    } else {
+                        alertMessage('Please provide both a rating and a comment.', 'error');
+                    }
+                });
+            } else {
+                document.getElementById('review-login-link').addEventListener('click', () => {
+                    productDetailModal.classList.add('hidden'); // Close modal
+                    renderPage('login'); // Go to login page
+                });
+            }
+
+            lucide.createIcons(); // Re-initialize icons for modal content
+        }
+
+        /**
+         * Renders the Shopping Cart Page content.
+         */
+        function renderCartPage() {
+            const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+            contentArea.innerHTML = `
+                <div class="container mx-auto p-8">
+                    <h2 class="text-4xl font-bold text-gray-800 mb-8 text-center">Your Shopping Cart</h2>
+                    ${cart.length === 0 ? `
+                        <div class="text-center text-gray-600 text-lg">
+                            <p class="mb-4">Your cart is empty.</p>
+                            <button id="continue-shopping-btn" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md">
+                                Continue Shopping
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+                            <div class="space-y-6">
+                                ${cart.map(item => `
+                                    <div class="flex items-center justify-between border-b pb-4 last:border-b-0 last:pb-0">
+                                        <div class="flex items-center space-x-4">
+                                            <img src="${item.imageUrl}" alt="${item.name}" class="w-20 h-20 object-cover rounded-lg shadow-sm">
+                                            <div>
+                                                <h3 class="text-lg font-semibold text-gray-800">${item.name}</h3>
+                                                <p class="text-gray-600">${formatPKR(item.price)}</p>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center space-x-4">
+                                            <div class="flex items-center border rounded-lg">
+                                                <button class="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-l-lg quantity-btn" data-id="${item.id}" data-action="decrease">-</button>
+                                                <span class="px-3 py-1 text-gray-800">${item.quantity}</span>
+                                                <button class="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded-r-lg quantity-btn" data-id="${item.id}" data-action="increase">+</button>
+                                            </div>
+                                            <p class="text-lg font-bold text-indigo-600">${formatPKR(item.price * item.quantity)}</p>
+                                            <button class="text-red-500 hover:text-red-700 remove-from-cart-btn" data-id="${item.id}">
+                                                <i data-lucide="trash-2" class="w-6 h-6"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <div class="flex justify-end items-center mt-8 pt-4 border-t">
+                                <p class="text-2xl font-bold text-gray-800 mr-4">Total: <span class="text-indigo-700">${formatPKR(total)}</span></p>
+                                <button id="checkout-btn" class="px-8 py-4 bg-green-600 text-white text-xl font-semibold rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                    Proceed to Checkout
+                                </button>
+                            </div>
+                            <div class="flex justify-center mt-4">
+                                <button id="clear-cart-btn" class="px-6 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors shadow-md">
+                                    Clear Cart
+                                </button>
+                            </div>
+                        </div>
+                    `}
+                </div>
+            `;
+
+            if (cart.length === 0) {
+                document.getElementById('continue-shopping-btn').addEventListener('click', () => renderPage('categories'));
+            } else {
+                document.querySelectorAll('.quantity-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const productId = event.currentTarget.dataset.id;
+                        const action = event.currentTarget.dataset.action;
+                        const item = cart.find(i => i.id === productId);
+                        if (item) {
+                            const newQuantity = action === 'increase' ? item.quantity + 1 : item.quantity - 1;
+                            updateCartQuantity(productId, newQuantity);
+                        }
+                    });
+                });
+                document.querySelectorAll('.remove-from-cart-btn').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        const productId = event.currentTarget.dataset.id;
+                        removeFromCart(productId);
+                    });
+                });
+                document.getElementById('checkout-btn').addEventListener('click', () => renderPage('payment'));
+                document.getElementById('clear-cart-btn').addEventListener('click', () => {
+                    // Simple confirmation before clearing
+                    // DO NOT use confirm() in production code for iframes, use custom modal
+                    if (confirm('Are you sure you want to clear your cart?')) {
+                        clearCart();
+                        renderPage('cart'); // Re-render empty cart
+                        alertMessage('Cart cleared!', 'error');
+                    }
+                });
+            }
+            lucide.createIcons();
+        }
+
+        /**
+         * Renders the Payment Process Page content.
+         */
+        function renderPaymentPage() {
+            const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+            contentArea.innerHTML = `
+                <div class="container mx-auto p-8">
+                    <button id="back-to-cart-btn" class="flex items-center text-blue-600 hover:text-blue-800 mb-6 font-medium transition-colors">
+                        <i data-lucide="chevron-left" class="w-5 h-5 mr-2"></i> Back to Cart
+                    </button>
+                    <h2 class="text-4xl font-bold text-gray-800 mb-8 text-center">Checkout</h2>
+                    <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+                        <h3 class="text-2xl font-semibold text-gray-800 mb-6">Shipping Information</h3>
+                        <form id="payment-form" class="space-y-6">
+                            <div>
+                                <label for="fullName" class="block text-gray-700 text-sm font-bold mb-2">Full Name</label>
+                                <input type="text" id="fullName" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="John Doe" required>
+                            </div>
+                            <div>
+                                <label for="address" class="block text-gray-700 text-sm font-bold mb-2">Address</label>
+                                <input type="text" id="address" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="123 Main St" required>
+                            </div>
+                            <div>
+                                <label for="city" class="block text-gray-700 text-sm font-bold mb-2">City</label>
+                                <input type="text" id="city" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Anytown" required>
+                            </div>
+                            <div>
+                                <label for="zipCode" class="block text-gray-700 text-sm font-bold mb-2">Zip Code</label>
+                                <input type="text" id="zipCode" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="12345" required>
+                            </div>
+                            <div>
+                                <label for="email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="email" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="john.doe@example.com" required>
+                            </div>
+
+                            <h3 class="text-2xl font-semibold text-gray-800 mt-8 mb-6">Payment Method</h3>
+                            <div class="flex items-center space-x-4 mb-6">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="paymentMethod" value="card" class="form-radio text-blue-600 h-5 w-5" checked>
+                                    <span class="ml-2 text-gray-700">Credit Card</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="paymentMethod" value="cod" class="form-radio text-green-600 h-5 w-5">
+                                    <span class="ml-2 text-gray-700">Cash on Delivery (COD)</span>
+                                </label>
+                            </div>
+
+                            <div id="card-details" class="space-y-6">
+                                <div>
+                                    <label for="cardNumber" class="block text-gray-700 text-sm font-bold mb-2">Card Number</label>
+                                    <input type="text" id="cardNumber" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="**** **** **** ****" required pattern="[0-9]{16}" title="16-digit card number">
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="expiryDate" class="block text-gray-700 text-sm font-bold mb-2">Expiry Date (MM/YY)</label>
+                                        <input type="text" id="expiryDate" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="MM/YY" required pattern="(0[1-9]|1[0-2])\/([0-9]{2})" title="MM/YY format">
+                                    </div>
+                                    <div>
+                                        <label for="cvv" class="block text-gray-700 text-sm font-bold mb-2">CVV</label>
+                                        <input type="text" id="cvv" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="123" required pattern="[0-9]{3,4}" title="3 or 4 digit CVV">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-center mt-8 pt-4 border-t">
+                                <p class="text-2xl font-bold text-gray-800">Order Total: <span class="text-indigo-700">${formatPKR(total)}</span></p>
+                                <button type="submit" class="px-8 py-4 bg-indigo-600 text-white text-xl font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition-colors">
+                                    Place Order
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            document.getElementById('back-to-cart-btn').addEventListener('click', () => renderPage('cart'));
+
+            const paymentMethodRadios = document.querySelectorAll('input[name="paymentMethod"]');
+            const cardDetailsDiv = document.getElementById('card-details');
+            const cardNumberInput = document.getElementById('cardNumber');
+            const expiryDateInput = document.getElementById('expiryDate');
+            const cvvInput = document.getElementById('cvv');
+
+            function toggleCardDetails() {
+                const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+                if (selectedMethod === 'cod') {
+                    cardDetailsDiv.classList.add('hidden');
+                    // Make card fields not required when COD is selected
+                    cardNumberInput.removeAttribute('required');
+                    expiryDateInput.removeAttribute('required');
+                    cvvInput.removeAttribute('required');
+                } else {
+                    cardDetailsDiv.classList.remove('hidden');
+                    // Make card fields required when Credit Card is selected
+                    cardNumberInput.setAttribute('required', 'required');
+                    expiryDateInput.setAttribute('required', 'required');
+                    cvvInput.setAttribute('required', 'required');
+                }
+            }
+
+            paymentMethodRadios.forEach(radio => {
+                radio.addEventListener('change', toggleCardDetails);
+            });
+            toggleCardDetails(); // Initial call to set visibility based on default checked radio
+
+            document.getElementById('payment-form').addEventListener('submit', (event) => {
+                event.preventDefault(); // Prevent default form submission
+                const selectedMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+
+                if (selectedMethod === 'cod') {
+                    alertMessage('Order placed via Cash on Delivery!', 'success');
+                } else {
+                    alertMessage('Processing payment...', 'success');
+                }
+
+                setTimeout(() => {
+                    clearCart(); // Clear cart after successful order
+                    orderConfirmed = true;
+                    renderPage('order-confirmation');
+                    // In a real app, you'd send order data to Firestore here
+                    // if (db && userId) { addDoc(collection(db, `artifacts/${appId}/users/${userId}/orders`), { /* order details */ }); }
+                }, 2000);
+            });
+            lucide.createIcons();
+        }
+
+        /**
+         * Renders the Order Confirmation Page content with animation.
+         */
+        function renderOrderConfirmationPage() {
+            contentArea.innerHTML = `
+                <div class="min-h-[calc(100vh-80px)] flex flex-col items-center justify-center ${orderConfirmed ? 'bg-green-500' : 'bg-red-500'} text-white p-8 rounded-lg">
+                    <div class="text-center">
+                        ${orderConfirmed ? `
+                            <svg class="checkmark-svg w-32 h-32 mx-auto mb-6" viewBox="0 0 52 52">
+                                <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
+                                <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                            </svg>
+                            <h2 class="text-5xl font-bold mb-4 animate-fade-in-down">Order Confirmed!</h2>
+                            <p class="text-xl mb-8 animate-fade-in-up">Thank you for your purchase. Your order has been successfully placed.</p>
+                            <p class="text-lg animate-fade-in-up">Order ID: <span class="font-bold">#${Math.floor(Math.random() * 1000000)}</span></p>
+                        ` : `
+                            <i data-lucide="x-circle" class="w-32 h-32 mx-auto mb-6"></i>
+                            <h2 class="text-5xl font-bold mb-4">Order Failed!</h2>
+                            <p class="text-xl mb-8">There was an issue processing your order. Please try again.</p>
+                        `}
+                        <button id="back-to-home-btn" class="px-8 py-4 bg-white text-green-600 text-xl font-semibold rounded-lg shadow-md hover:bg-gray-100 transition-colors mt-10">
+                            Back to Home
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('back-to-home-btn').addEventListener('click', () => {
+                orderConfirmed = false; // Reset for next order
+                renderPage('home');
+            });
+            lucide.createIcons();
+        }
+
+        /**
+         * Renders the Admin Panel content for product management.
+         */
+        function renderAdminPanel() {
+            // This check is now done in renderPage before calling this function
+            contentArea.innerHTML = `
+                <div class="container mx-auto p-8">
+                    <h2 class="text-4xl font-bold text-gray-800 mb-8 text-center">Admin Panel - Product Management</h2>
+
+                    <!-- Add/Edit Product Form -->
+                    <div class="bg-white rounded-xl shadow-lg p-8 mb-10 max-w-3xl mx-auto">
+                        <h3 id="form-title" class="text-2xl font-semibold text-gray-800 mb-6">Add New Product</h3>
+                        <form id="product-form" class="space-y-6">
+                            <input type="hidden" id="product-id">
+                            <div>
+                                <label for="product-name" class="block text-gray-700 text-sm font-bold mb-2">Product Name</label>
+                                <input type="text" id="product-name" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                            </div>
+                            <div>
+                                <label for="product-category" class="block text-gray-700 text-sm font-bold mb-2">Category</label>
+                                <select id="product-category" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                                    <option value="">Select a category</option>
+                                    <option value="Electronics">Electronics</option>
+                                    <option value="Clothing">Clothing</option>
+                                    <option value="Home Goods">Home Goods</option>
+                                    <option value="Books">Books</option>
+                                    <option value="Sports & Outdoors">Sports & Outdoors</option>
+                                    <option value="Beauty">Beauty</option>
+                                    <option value="Kids & Toys">Kids & Toys</option>
+                                    <option value="Pet Supplies">Pet Supplies</option>
+                                    <option value="Automotive">Automotive</option>
+                                    <option value="Garden & Outdoor">Garden & Outdoor</option>
+                                    <option value="Jewelry">Jewelry</option>
+                                    <option value="Food & Drink">Food & Drink</option>
+                                    <option value="Health & Wellness">Health & Wellness</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="product-price" class="block text-gray-700 text-sm font-bold mb-2">Price</label>
+                                <input type="number" id="product-price" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" step="1" required>
+                            </div>
+                            <div>
+                                <label for="product-description" class="block text-gray-700 text-sm font-bold mb-2">Description</label>
+                                <textarea id="product-description" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 h-24" required></textarea>
+                            </div>
+                            <div>
+                                <label for="product-image-url" class="block text-gray-700 text-sm font-bold mb-2">Image URL</label>
+                                <input type="url" id="product-image-url" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://placehold.co/300x200" required>
+                            </div>
+                            <button type="submit" id="submit-product-btn" class="px-8 py-4 bg-blue-600 text-white text-xl font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors w-full">
+                                Add Product
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Product List Table -->
+                    <div class="bg-white rounded-xl shadow-lg p-8">
+                        <h3 class="text-2xl font-semibold text-gray-800 mb-6">Existing Products</h3>
+                        ${products.length === 0 ? `
+                            <p class="text-center text-gray-600 text-lg">No products to display.</p>
+                        ` : `
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full bg-white rounded-lg overflow-hidden">
+                                    <thead class="bg-gray-100 border-b">
+                                        <tr>
+                                            <th class="text-left py-3 px-4 text-gray-700 font-semibold text-sm uppercase">ID</th>
+                                            <th class="text-left py-3 px-4 text-gray-700 font-semibold text-sm uppercase">Name</th>
+                                            <th class="text-left py-3 px-4 text-gray-700 font-semibold text-sm uppercase">Category</th>
+                                            <th class="text-left py-3 px-4 text-gray-700 font-semibold text-sm uppercase">Price</th>
+                                            <th class="text-left py-3 px-4 text-gray-700 font-semibold text-sm uppercase">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${products.map(product => `
+                                            <tr class="border-b last:border-b-0 hover:bg-gray-50">
+                                                <td class="py-3 px-4 text-gray-800 text-sm">${product.id}</td>
+                                                <td class="py-3 px-4 text-gray-800 text-sm">${product.name}</td>
+                                                <td class="py-3 px-4 text-gray-800 text-sm">${product.category}</td>
+                                                <td class="py-3 px-4 text-gray-800 text-sm">${formatPKR(product.price)}</td>
+                                                <td class="py-3 px-4 text-sm flex space-x-2">
+                                                    <button class="text-blue-600 hover:text-blue-800 edit-product-btn" data-id="${product.id}">
+                                                        <i data-lucide="edit" class="w-5 h-5"></i>
+                                                    </button>
+                                                    <button class="text-red-500 hover:text-red-700 delete-product-btn" data-id="${product.id}">
+                                                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+
+            const productForm = document.getElementById('product-form');
+            const productIdInput = document.getElementById('product-id');
+            const productNameInput = document.getElementById('product-name');
+            const productCategorySelect = document.getElementById('product-category');
+            const productPriceInput = document.getElementById('product-price');
+            const productDescriptionInput = document.getElementById('product-description');
+            const productImageUrlInput = document.getElementById('product-image-url');
+            const submitProductBtn = document.getElementById('submit-product-btn');
+            const formTitle = document.getElementById('form-title');
+
+            let editingProductId = null; // To keep track if we are editing or adding
+
+            productForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const newProduct = {
+                    name: productNameInput.value,
+                    category: productCategorySelect.value,
+                    price: parseFloat(productPriceInput.value),
+                    description: productDescriptionInput.value,
+                    imageUrl: productImageUrlInput.value,
+                };
+
+                if (editingProductId) {
+                    updateProduct({ ...newProduct, id: editingProductId });
+                    editingProductId = null;
+                    formTitle.textContent = 'Add New Product';
+                    submitProductBtn.textContent = 'Add Product';
+                } else {
+                    addProduct(newProduct);
+                }
+                productForm.reset(); // Clear form
+            });
+
+            document.querySelectorAll('.edit-product-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    editingProductId = event.currentTarget.dataset.id;
+                    const productToEdit = products.find(p => p.id === editingProductId);
+                    if (productToEdit) {
+                        productNameInput.value = productToEdit.name;
+                        productCategorySelect.value = productToEdit.category;
+                        productPriceInput.value = productToEdit.price;
+                        productDescriptionInput.value = productToEdit.description;
+                        productImageUrlInput.value = productToEdit.imageUrl;
+                        formTitle.textContent = `Edit Product: ${productToEdit.name}`;
+                        submitProductBtn.textContent = 'Update Product';
+                        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to form
+                    }
+                });
+            });
+
+            document.querySelectorAll('.delete-product-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const productIdToDelete = event.currentTarget.dataset.id;
+                    // DO NOT use confirm() in production code for iframes, use custom modal
+                    if (confirm('Are you sure you want to delete this product?')) {
+                        deleteProduct(productIdToDelete);
+                    }
+                });
+            });
+            lucide.createIcons();
+        }
+
+        /**
+         * Renders the Login Page content.
+         */
+        function renderLoginPage() {
+            contentArea.innerHTML = `
+                <div class="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-br from-blue-50 to-indigo-100 p-8 rounded-lg shadow-inner">
+                    <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Login</h2>
+                        <form id="login-form" class="space-y-6">
+                            <div>
+                                <label for="login-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="login-email" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your.email@example.com" required>
+                            </div>
+                            <div>
+                                <label for="login-password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                                <input type="password" id="login-password" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="********" required>
+                            </div>
+                            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors shadow-md">
+                                Login
+                            </button>
+                        </form>
+                        <p class="text-center text-gray-600 text-sm mt-6">
+                            Don't have an account? <span id="go-to-signup" class="text-blue-600 hover:underline cursor-pointer">Sign Up</span>
+                        </p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('login-form').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const email = document.getElementById('login-email').value;
+                const password = document.getElementById('login-password').value;
+                await handleLogin(email, password);
+            });
+            document.getElementById('go-to-signup').addEventListener('click', () => renderPage('signup'));
+        }
+
+        /**
+         * Renders the Sign Up Page content.
+         */
+        function renderSignUpPage() {
+            contentArea.innerHTML = `
+                <div class="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-br from-blue-50 to-indigo-100 p-8 rounded-lg shadow-inner">
+                    <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Sign Up</h2>
+                        <form id="signup-form" class="space-y-6">
+                            <div>
+                                <label for="signup-email" class="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input type="email" id="signup-email" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your.email@example.com" required>
+                            </div>
+                            <div>
+                                <label for="signup-password" class="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                                <input type="password" id="signup-password" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="********" required minlength="6">
+                                <p class="text-gray-500 text-xs mt-1">Password must be at least 6 characters long.</p>
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-md">
+                                Sign Up
+                            </button>
+                        </form>
+                        <p class="text-center text-gray-600 text-sm mt-6">
+                            Already have an account? <span id="go-to-login" class="text-blue-600 hover:underline cursor-pointer">Login</span>
+                        </p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('signup-form').addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+                await handleSignUp(email, password);
+            });
+            document.getElementById('go-to-login').addEventListener('click', () => renderPage('login'));
+        }
+
+        /**
+         * Renders the Admin Authentication Page.
+         */
+        function renderAdminAuthPage() {
+            contentArea.innerHTML = `
+                <div class="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] bg-gradient-to-br from-red-50 to-red-100 p-8 rounded-lg shadow-inner">
+                    <div class="bg-white rounded-xl shadow-lg p-8 w-full max-w-md">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">Admin Login</h2>
+                        <p class="text-center text-gray-600 mb-6">Enter the admin password to access the product management panel.</p>
+                        <form id="admin-auth-form" class="space-y-6">
+                            <div>
+                                <label for="admin-password" class="block text-gray-700 text-sm font-bold mb-2">Admin Password</label>
+                                <input type="password" id="admin-password" class="shadow appearance-none border rounded-lg w-full py-3 px-4 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-red-500" placeholder="********" required>
+                            </div>
+                            <button type="submit" class="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors shadow-md">
+                                Access Admin Panel
+                            </button>
+                        </form>
+                        <p class="text-center text-gray-600 text-sm mt-6">
+                            <span id="back-to-home-from-admin-auth" class="text-blue-600 hover:underline cursor-pointer">Back to Home</span>
+                        </p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('admin-auth-form').addEventListener('submit', (event) => {
+                event.preventDefault();
+                const enteredPassword = document.getElementById('admin-password').value;
+                if (enteredPassword === ADMIN_PASSWORD) {
+                    isAdminAuthenticated = true;
+                    alertMessage('Admin access granted!', 'success');
+                    renderPage('admin'); // Render the actual admin panel
+                } else {
+                    alertMessage('Incorrect admin password.', 'error');
+                }
+            });
+            document.getElementById('back-to-home-from-admin-auth').addEventListener('click', () => renderPage('home'));
+        }
+
+        // --- Event Listeners for Navigation ---
+        document.getElementById('home-link').addEventListener('click', () => renderPage('home'));
+        document.getElementById('nav-home').addEventListener('click', () => renderPage('home'));
+        document.getElementById('nav-categories').addEventListener('click', () => renderPage('categories'));
+        document.getElementById('nav-cart').addEventListener('click', () => renderPage('cart'));
+        document.getElementById('nav-admin').addEventListener('click', () => renderPage('admin'));
+        document.getElementById('close-product-modal').addEventListener('click', () => productDetailModal.classList.add('hidden'));
+
+    </script>
+    
+
+</body>
+</html>
+
