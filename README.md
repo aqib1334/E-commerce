@@ -1,4 +1,2 @@
 ﻿# E-commerce
-
-AI
-
+ this project is made for intership but 
